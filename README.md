@@ -8,7 +8,7 @@ This project simulates the movement of a drone between predefined points while a
 - Adds wind effects to certain moves, influencing the drone's performance.
 
 ## Setup Instructions
-1. Place the file `sim_control_w_energy_wind_per_move_2.py` in your project directory.
+1. Place the file `sim_control_w_energy_wind_per_move_2.py`(or the version to be used this is just an example) in your project directory.
 2. Import the `DroneSimulation` class from the file as follows:
     ```python
     from sim_control_w_energy_wind_per_move_2 import DroneSimulation
@@ -57,7 +57,7 @@ points = {
     "C4": {"x": 10, "y": 6, "c": False},
 }
 
-# Moves where wind is present
+# Moves where wind exisits
 wind_moves = [4, 5]  # The 4th and 6th moves will have wind
 
 # Initialize the simulation
