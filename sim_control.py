@@ -171,4 +171,5 @@ if __name__ == "__main__":
     #quadcopter, sensors = create_coords(points)
     move_drone_to_sensor('C1')
     move_drone_to_sensor('C2')
+    move_drone_to_sensor('B')
     #print(f"Scene created with quadcopter {quadcopter} and {len(sensors)} sensors")

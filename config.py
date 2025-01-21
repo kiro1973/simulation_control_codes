@@ -8,7 +8,7 @@
 
 #Définition des emplacements des capteurs et de la base  
 points = {
-    "B": {"x": 5, "y": 7},
+    "B": {"x": 5, "y": 7, "c": True}, #Correct de concidérer B comme critique ?
     "C1": {"x": 1, "y": 5, "c": True},
     "C2": {"x": 2, "y": 1, "c": False},
     "C3": {"x": 6, "y": 2, "c": True},
@@ -34,10 +34,13 @@ points = {
 critical_sensors = {key: value for key, value in points.items() if value.get("c") == True}
 non_critical_sensors = {key: value for key, value in points.items() if value.get("c") == False}
 
-init_energy = 100
+init_energy = 80
 
-rapport_energy_dist = 2 # energy = rapport_energy_dist * dist
-reward_critical_sensors = len(non_critical_sensors)
+coef_energy_no_wind = 2 # energy = rapport_energy_dist * dist
+#wind_factor = 2 #coef multiplicateur de l'énergy consommé lorsqu'il y a du vent 
+coef_energy_wind = 4
+
+reward_critical_sensors = len(non_critical_sensors) +1
 reward_non_critical_sensors = 1
 
 replanning_freq = 3 #Décide les n prochains capteurs à visiter (refait le calcul de décision tous les n !)
@@ -47,3 +50,7 @@ nber_of_rollout_iterations = 500
 
 #Pour moi infinie...
 simulation_depth = 4 #Profondeur de simulation : on simule les 4 prochains capteurs afin de calculer la distance totale qui sera parcourue ! 
+
+
+# Moves where wind is present
+wind_moves = [4, 5]  # The 4th and 5th moves will have wind
