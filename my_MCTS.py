@@ -1,9 +1,3 @@
-"""
-A minimal implementation of Monte Carlo tree search (MCTS) in Python 3
-Luke Harold Miles, July 2019, Public Domain Dedication
-See also https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
-https://gist.github.com/qpwo/c538c6f73727e254fdc7fab81024f6e1
-"""
 from abc import ABC, abstractmethod
 from collections import defaultdict
 import math
@@ -13,22 +7,12 @@ import math
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-
+    #Attributes at TREE level
     def __init__(self, exploration_weight=1.2):#1.2
         self.Q = defaultdict(int)  # total reward of each node
         self.N = defaultdict(int)  # total visit count for each node
         self.children = dict()  # children of each node
         self.exploration_weight = exploration_weight
-       
-        self.node_names = {}  # Mapping from nodes to names
-        self.node_counter = 1  # Counter for naming nodes
-
-    def get_node_name(self, node): #Que AFFICHAGE
-        "Get or assign a name to the node."
-        if node not in self.node_names:
-            self.node_names[node] = f"n{self.node_counter}"
-            self.node_counter += 1
-        return self.node_names[node]
 
     def choose(self, node):
         "Choose the best successor of node. (Choose a move in the game)"
@@ -63,6 +47,7 @@ class MCTS:
             if node not in self.children or not self.children[node]:
                 # node is either unexplored or terminal
                 return path
+            
             unexplored = self.children[node] - self.children.keys()
             if unexplored:
                 n = unexplored.pop()
@@ -75,6 +60,9 @@ class MCTS:
         if node in self.children:
             return  # already expanded
         self.children[node] = node.find_children()
+        #print(f"Node {node.sensor} expanded. Number of children: {len(self.children[node])}.") #ok B is well expanded ! Have 20 children 
+        
+       
 
     # def _simulate(self, node):
     #     "Returns the reward for a random simulation (to completion) of `node`"
@@ -112,10 +100,10 @@ class MCTS:
         while True :
             if node.is_terminal():
                 reward = node.reward()
+                #print("reward",reward)
                 return reward
             #node = node.find_random_child() #Condition plus smart que random ? Distance la plus proche ? 
             node = node.find_closer_child()
-    
 
 
     def _backpropagate(self, path, reward):
@@ -123,15 +111,6 @@ class MCTS:
             for node in reversed(path):
                 self.N[node] += 1
                 self.Q[node] += reward
-
-
-
-    # def _backpropagate(self, path, reward):
-    #     "Send the reward back up to the ancestors of the leaf"
-    #     for node in reversed(path):
-    #         self.N[node] += 1
-    #         self.Q[node] += reward
-    #         reward = 1 - reward  # 1 for me is 0 for my enemy, and vice versa
 
     def _uct_select(self, node): 
         "UTC = Upper Confidence bound for Tree"
@@ -179,12 +158,3 @@ class Node(ABC):
         "Assumes `self` is terminal node. 1=win, 0=loss, .5=tie, etc"
         return 0
 
-    # @abstractmethod
-    # def __hash__(self):
-    #     "Nodes must be hashable"
-    #     return 123456789
-
-    # @abstractmethod
-    # def __eq__(node1, node2):
-    #     "Nodes must be comparable"
-    #     return True

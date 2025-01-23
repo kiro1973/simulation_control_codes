@@ -27,7 +27,7 @@ points = {
     "C16": {"x": 8, "y": 4, "c": False},
     "C17": {"x": 10, "y": 2, "c": True},
     "C18": {"x": 9, "y": 8, "c": False},
-    "C19": {"x": 5, "y": 5, "c": False},
+    "C19": {"x": 5, "y": 5, "c": True},
     "C20": {"x": 2, "y": 2, "c": False},
     }
 
@@ -54,3 +54,4 @@ simulation_depth = 4 #Profondeur de simulation : on simule les 4 prochains capte
 
 # Moves where wind is present
 wind_moves = [4, 5]  # The 4th and 5th moves will have wind
+#wind_moves = []

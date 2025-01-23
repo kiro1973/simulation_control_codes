@@ -1,17 +1,20 @@
+################### RETURNING TO BASE  AND CALCULATION FIXED###########
 import math
+import threading
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import os
 import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap
 import sys
+from config import *
 
 class EnergyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Drone Energy Monitor")
-        self.setFixedSize(200, 180)
+        self.setFixedSize(200, 250)  # Increased height for position info
         
         # Set window position from left and bottom
         screen = QApplication.primaryScreen().geometry()
@@ -36,7 +39,20 @@ class EnergyWindow(QMainWindow):
         self.energy_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(self.energy_label)
         
-        # Add some spacing between image and text
+        # Add position labels
+        self.position_label = QLabel("Position:")
+        self.position_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.position_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        layout.addWidget(self.position_label)
+        
+        self.x_label = QLabel("X: 0.00")
+        self.y_label = QLabel("Y: 0.00")
+        self.z_label = QLabel("Z: 0.00")
+        for label in [self.x_label, self.y_label, self.z_label]:
+            label.setStyleSheet("font-size: 12px;")
+            layout.addWidget(label)
+        
+        # Add some spacing between elements
         layout.setSpacing(10)
         
         self.show()
@@ -47,6 +63,39 @@ class EnergyWindow(QMainWindow):
             self.energy_label.setStyleSheet("font-size: 16px; font-weight: bold; color: red;")
         else:
             self.energy_label.setStyleSheet("font-size: 16px; font-weight: bold; color: black;")
+            
+    def update_position(self, position):
+        if position:
+            self.x_label.setText(f"X: {position[0]:.2f}")
+            self.y_label.setText(f"Y: {position[1]:.2f}")
+            self.z_label.setText(f"Z: {position[2]:.2f}")
+
+class DroneMonitor(threading.Thread):
+    def __init__(self, simulation, window):
+        super().__init__()
+        self.simulation = simulation
+        self.window = window
+        self.running = True
+        self.client = RemoteAPIClient()
+        self.sim = self.client.getObject('sim')
+
+    def run(self):
+        while self.running:
+            try:
+                # Update energy
+                energy = self.simulation.get_remaining_energy()
+                self.window.update_energy(energy)
+                
+                # Update position
+                if self.simulation.quadcopter_handle is not None:
+                    position = self.sim.getObjectPosition(self.simulation.quadcopter_handle, -1)
+                    self.window.update_position(position)
+            except Exception as e:
+                print(f"Error in monitor thread: {e}")
+            time.sleep(0.1)  # Update every 100ms
+
+    def stop(self):
+        self.running = False
 
 class DroneSimulation(QThread):
     energy_updated = pyqtSignal(float)
@@ -72,15 +121,18 @@ class DroneSimulation(QThread):
         self.quadcopter_handle, self.sensors = self.create_coords(self.points)
         drone_pos = self.sim.getObjectPosition(self.quadcopter_handle, -1)
         self.wind_icon_handle = self.create_wind_icon([
-            drone_pos[0] + 0.6,
-            drone_pos[1]+0.6,
+            drone_pos[0] - 0.3,
+            drone_pos[1]-0.3,
             drone_pos[2]
         ])
         self.hide_wind_icon()
         print("Simulation initialized successfully.")
 
-    def get_energy(self):
+    def get_consumed_energy(self):
         return self.consumed_energy
+
+    def get_remaining_energy(self):
+        return self.energy
 
     def calculate_energy_consumption(self, base_energy, wind_factor):
         return base_energy * (1 + wind_factor)
@@ -103,10 +155,43 @@ class DroneSimulation(QThread):
             print(f"Error creating label for object {object_handle}: {e}")
 
     def create_plane(self, center_x, center_y, width, height):
-        plane_handle = self.sim.createPrimitiveShape(self.sim.primitiveshape_plane, [1, 1, 0.01], 0)
-        self.sim.setObjectPosition(plane_handle, -1, [center_x, center_y, 0])
-        self.sim.scaleObject(plane_handle, width, height, 1, 0)
+        # Create a smaller plane by reducing the width and height
+        plane_handle = self.sim.createPrimitiveShape(
+            self.sim.primitiveshape_cuboid,  
+            [width, height, 0.01],  # Keep the original dimensions from parameters
+            0
+        )
+        self.sim.setObjectPosition(plane_handle, -1, [center_x, center_y, -0.005])
+        
+        # Set darker green color (RGB values between 0 and 1)
+        darker_green = [0.2, 0.5, 0.2]  # Much darker shade of green
+        self.sim.setShapeColor(plane_handle, None, 0, darker_green)
+        
         return plane_handle
+    def create_bluetooth_icon(self, position, is_critical):
+        # Create a small plane for the bluetooth icon
+        icon_scale = [0.3, 0.3, 0.3]  # Smaller scale for bluetooth icon
+        icon_handle = self.sim.createPrimitiveShape(
+            self.sim.primitiveshape_plane, icon_scale, 0
+        )
+        
+        # Position the icon slightly above the sensor
+        icon_position = [
+            position[0]+0.4,
+            position[1]+0.4,
+            position[2] + 0.2  # Slightly above the sensor
+        ]
+        self.sim.setObjectPosition(icon_handle, -1, icon_position)
+        
+        # Choose icon based on whether the sensor is critical
+        icon_path = os.path.abspath('bluetooth_red.png' if is_critical else 'bluetooth_blue.png')
+        shape, texture_id, _ = self.sim.createTexture(icon_path, 0, None, None)
+        self.sim.setShapeTexture(
+            icon_handle, texture_id, self.sim.texturemap_plane, 0, [1, 1]
+        )
+        #darker_green = [0.2, 0.5, 0.2]
+        #self.sim.setShapeColor(icon_handle, None, 0, darker_green)
+        return icon_handle
 
     def create_quadcopter(self, position):
         quadcopter_handle = self.sim.loadModel('models/robots/mobile/Quadcopter.ttm')
@@ -140,10 +225,12 @@ class DroneSimulation(QThread):
         center_y = (min_y + max_y) / 2
         width = max_x - min_x + 2
         height = max_y - min_y + 2
-        plane_handle = self.create_plane(center_x, center_y, width+10, height+10)
+        # Create a smaller plane by adding less padding
+        plane_handle = self.create_plane(center_x, center_y, width + 4, height + 4)  # Reduced padding from 10 to 4
         return plane_handle
 
     def create_coords(self, points):
+        # Create floor based on all points
         sensor_positions = [(data["x"], data["y"]) for key, data in points.items()]
         self.resize_existing_floor(sensor_positions)
         
@@ -151,15 +238,23 @@ class DroneSimulation(QThread):
         quadcopter_position = [points["B"]["x"], points["B"]["y"], 2]
         quadcopter_handle = self.create_quadcopter(quadcopter_position)
         
-        # Create sensors for all points, including B
+        # Create sensors and bluetooth icons for all points
         sensors = {}
         for key, data in points.items():
             sensor_position = [data["x"], data["y"], 1]
             sensor_handle = self.create_vision_sensor(sensor_position)
             self.sim.setObjectAlias(sensor_handle, key)
+            
             is_critical = data.get('c', False)
             self.create_label(sensor_handle, key, is_critical)
-            sensors[key] = sensor_handle
+            
+            # Create bluetooth icon for each sensor
+            bluetooth_handle = self.create_bluetooth_icon(sensor_position, is_critical)
+            # Optionally store the bluetooth handle if you need to modify it later
+            sensors[key] = {
+                'sensor': sensor_handle,
+                'bluetooth': bluetooth_handle
+            }
 
         return quadcopter_handle, sensors
 
@@ -191,14 +286,19 @@ class DroneSimulation(QThread):
             )
 
     def move_drone_to_sensor(self, sensor_name):
+        time.sleep(0.5)
         self.move_count += 1
         base_energy = 1
-        wind_factor = 2 if self.move_count in self.wind_moves else 0
+        # wind_factor = 2 if self.move_count in self.wind_moves else 0
+        print ("wind_moves: " , self.wind_moves)
+        print("self.move_count: ",self.move_count)
+        wind_factor = coef_energy_wind if self.move_count in self.wind_moves else coef_energy_no_wind
 
         if self.quadcopter_handle == -1:
             raise ValueError("Drone not found in the scene.")
 
-        sensor_handle = self.sensors.get(sensor_name)
+        sensor_handle = self.sensors.get(sensor_name)['sensor']
+        print ("sensor handle",sensor_handle)
         if sensor_handle is None:
             raise ValueError(f"Sensor '{sensor_name}' not found.")
 
@@ -213,13 +313,13 @@ class DroneSimulation(QThread):
             (current_point["y"] - prev_point["y"])**2
         )
         self.previous_energy = self.energy
-        energy_consumed = self.calculate_energy_consumption(base_energy, wind_factor)
-        self.energy -= energy_consumed
-        self.consumed_energy += energy_consumed * distance
+        #energy_consumed = self.calculate_energy_consumption(base_energy, wind_factor)
         
+        self.consumed_energy += wind_factor * distance
+        self.energy -= self.consumed_energy
         self.energy_updated.emit(self.energy)
 
-        if wind_factor > 0:
+        if wind_factor > 2:
             self.show_wind_icon()
         else:
             self.hide_wind_icon()
@@ -240,7 +340,7 @@ class DroneSimulation(QThread):
         self.previous_sensor = sensor_name
 
     def run(self):
-        sensors_to_visit = ['C1', 'C2', 'C3', 'C4', 'C1', 'C2', 'B']
+        sensors_to_visit = ['C1', 'C2', 'C3', 'C4', 'C1', 'C2', 'B']  # Added 'B' to the path
         for sensor_name in sensors_to_visit:
             self.move_drone_to_sensor(sensor_name)
             time.sleep(0.5)
@@ -260,9 +360,18 @@ def main():
     
     simulation = DroneSimulation(points, wind_moves)
     simulation.energy_updated.connect(energy_window.update_energy)
+    
+    # Create and start the monitor thread
+    monitor = DroneMonitor(simulation, energy_window)
+    monitor.start()
+    
     simulation.start()
     
-    sys.exit(app.exec_())
+    try:
+        sys.exit(app.exec_())
+    finally:
+        monitor.stop()
+        monitor.join()
 
 if __name__ == "__main__":
     main()
