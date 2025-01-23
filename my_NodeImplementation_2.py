@@ -19,6 +19,7 @@ class PlotSignals(QObject):
 
 class Node(Node):
     next_node_id = 0
+    #Test
 
     def __init__(self, sensor, parent, terminal):
         self.id = Node.next_node_id
