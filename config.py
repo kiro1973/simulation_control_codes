@@ -25,20 +25,22 @@ points = {
     "C14": {"x": 1, "y": 3, "c": False},
     "C15": {"x": 4, "y": 2, "c": True},
     "C16": {"x": 8, "y": 4, "c": False},
-    "C17": {"x": 10, "y": 2, "c": True},
+    "C17": {"x": 10, "y": 2, "c": False},
     "C18": {"x": 9, "y": 8, "c": False},
-    "C19": {"x": 5, "y": 5, "c": True},
+    "C19": {"x": 5, "y": 5, "c": False},
     "C20": {"x": 2, "y": 2, "c": False},
     }
 
 critical_sensors = {key: value for key, value in points.items() if value.get("c") == True}
 non_critical_sensors = {key: value for key, value in points.items() if value.get("c") == False}
 
-init_energy = 150
+init_energy = 100
 
-coef_energy_no_wind = 2 # energy = rapport_energy_dist * dist
-#wind_factor = 2 #coef multiplicateur de l'énergy consommé lorsqu'il y a du vent 
-coef_energy_wind = 3
+coef_energy_no_wind_max = 2 # energy_consumed = coef_energy * dist
+coef_energy_wind_max = 3
+
+coef_energy_no_wind_real = 1.9
+coef_energy_wind_real = 2.9
 
 reward_critical_sensors = len(non_critical_sensors) +1
 reward_non_critical_sensors = 1
@@ -53,5 +55,5 @@ simulation_depth = 4 #Profondeur de simulation : on simule les 4 prochains capte
 
 
 # Moves where wind is present
-wind_moves = [5,6,7,8]  # The 4th and 5th moves will have wind
+wind_moves = [9,10,11,12,13,14,15]  # The 4th and 5th moves will have wind
 #wind_moves = []

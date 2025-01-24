@@ -285,15 +285,15 @@ class DroneSimulation(QThread):
                 0
             )
 
-    def move_drone_to_sensor(self, sensor_name, is_HI_Mode):
-        print("is_HI_Mode_simu", is_HI_Mode)
+    def move_drone_to_sensor(self, sensor_name, is_HI_Mode, accumulated_cost_mode_HI, accumulated_cost_mode_LO):
+
         time.sleep(0.5)
         self.move_count += 1
         base_energy = 1
         # wind_factor = 2 if self.move_count in self.wind_moves else 0
         #print ("wind_moves: " , self.wind_moves)
         print("self.move_count: ",self.move_count)
-        wind_factor = coef_energy_wind if self.move_count in self.wind_moves else coef_energy_no_wind
+        wind_factor = coef_energy_wind_real if self.move_count in self.wind_moves else coef_energy_no_wind_real
 
         if self.quadcopter_handle == -1:
             raise ValueError("Drone not found in the scene.")
@@ -341,6 +341,13 @@ class DroneSimulation(QThread):
         
         self.sim.moveToPose(params)
         self.previous_sensor = sensor_name
+
+        #A Afficher sur le widget après la mise à jour de ton energy consumed !! 
+        print("is_HI_Mode_simu", is_HI_Mode)
+        print("Move to sensor : ", sensor_name)
+        print("accumulated_cost_mode_LO", accumulated_cost_mode_LO)
+        print("accumulated_cost_mode_HI", accumulated_cost_mode_HI)
+        print("real_consumed_energy",self.consumed_energy)
 
     def run(self):
         sensors_to_visit = ['C1', 'C2', 'C3', 'C4', 'C1', 'C2', 'B']  # Added 'B' to the path

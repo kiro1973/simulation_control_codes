@@ -16,9 +16,8 @@ matplotlib.use('Qt5Agg')
 
 is_HI_Mode = False
 
-
 class PlotSignals(QObject):
-    plot_signal = pyqtSignal(dict, list, bool)
+    plot_signal = pyqtSignal(dict, list, list, list)
 
 class Node(Node):
     next_node_id = 0
@@ -32,7 +31,6 @@ class Node(Node):
         self.terminal = terminal
         self.accumulated_cost_mode_LO = 0 
         self.accumulated_cost_mode_HI = 0
-        self.deleted = False
         self.compute_accumulated_cost()
         #print(f"Node Created: ID={self.id}, Sensor={self.sensor}, Parent={self.parent.sensor if self.parent else None}, Terminal={self.terminal}")
 
@@ -44,23 +42,28 @@ class Node(Node):
             """real_parent = self.parent 
             while (real_parent.deleted == True):
                 real_parent = real_parent.parent
-            """
-                
+            """     
             #dist_from_parent_to_current_node = calculate_distance(points[self.parent.sensor], points[self.sensor])
             dist_from_parent_to_current_node = calculate_distance(points[self.parent.sensor], points[self.sensor])
-            self.accumulated_cost_mode_LO = self.parent.accumulated_cost_mode_LO + coef_energy_no_wind*dist_from_parent_to_current_node
+            self.accumulated_cost_mode_LO = self.parent.accumulated_cost_mode_LO + coef_energy_no_wind_max*dist_from_parent_to_current_node
             
             if (points[self.sensor]["c"] == True):
                 node = self.parent
                 worst_accumulated_cost = node.accumulated_cost_mode_HI
+                longest_dist_from_previous_to_curent_node = dist_from_parent_to_current_node
                 while (node.parent != None and points[node.sensor]["c"]==False):
                     node = node.parent
                     if (node.accumulated_cost_mode_HI > worst_accumulated_cost):
                         worst_accumulated_cost = node.accumulated_cost_mode_HI
 
-                self.accumulated_cost_mode_HI = worst_accumulated_cost + coef_energy_wind*dist_from_parent_to_current_node
+                    """dist_to_compare = calculate_distance(points[node.sensor], points[self.sensor])
+                    if (dist_to_compare > longest_dist_from_previous_to_curent_node):
+                        longest_dist_from_previous_to_curent_node = dist_to_compare 
+                    """                  
+
+                self.accumulated_cost_mode_HI = worst_accumulated_cost + coef_energy_wind_max*longest_dist_from_previous_to_curent_node
             else:
-                self.accumulated_cost_mode_HI = self.parent.accumulated_cost_mode_LO + coef_energy_wind*dist_from_parent_to_current_node
+                self.accumulated_cost_mode_HI = self.parent.accumulated_cost_mode_LO + coef_energy_wind_max*dist_from_parent_to_current_node
 
         #print("accumulated_cost_mode_HI", self.id, " : ", self.sensor, " : ", self.accumulated_cost_mode_HI)
         #print("accumulated_cost_mode_LO", self.id, " : ", self.sensor, " : ", self.accumulated_cost_mode_LO)
@@ -142,7 +145,12 @@ class Node(Node):
         if (sensor == "B"): 
             return Node(sensor = sensor, parent = self, terminal = True)
         #elif ((self.accumulated_cost_mode_HI + coef_energy_wind*(dist_to_next+dist_next_to_base) >= init_energy and is_HI_Mode == True)  or (self.accumulated_cost_mode_LO + coef_energy_no_wind*(dist_to_next+dist_next_to_base) >= init_energy  and is_HI_Mode == False)):      
-        elif (self.accumulated_cost_mode_LO + coef_energy_no_wind*(dist_to_next+dist_next_to_base) >= init_energy ):  
+        
+        #Dans le cas où il n'y a jamais de vent on parcourt la sequence entière ! 
+        #Si on met la condition d'arrêt de la sequence avec HI, on optimise pas du tt l'énergy du drone... (il reste plein d'énergy à la fin...)
+        #elif (self.accumulated_cost_mode_LO + coef_energy_no_wind*(dist_to_next+dist_next_to_base) >= init_energy ):  
+        elif (self.accumulated_cost_mode_HI + coef_energy_wind_max*(dist_to_next+dist_next_to_base) >= init_energy): 
+        #elif (self.accumulated_cost_mode_HI + coef_energy_wind*(dist_to_next+dist_next_to_base) >= init_energy ): 
             return Node(sensor="B", parent=self, terminal=True)
         else:
             return Node(sensor=sensor, parent=self, terminal=False)
@@ -170,31 +178,46 @@ def calculate_distance_totale_max():
         current = remaining.pop(next_name)
     return total
 
-def plot_capteurs_points(points, real_visited_sensors, is_HI_Mode):
+def plot_capteurs_points(points, real_visited_sensors, deleted_sensors, is_HI_Mode_list):
     plt.clf()
     plt.gcf().set_size_inches(10, 8) 
+    # Tracer les capteurs
     for name, coord in points.items():
         x, y = coord["x"], coord["y"]
-        if name == "B":
-            color = "black" 
-        elif name in critical_sensors:
-            color = "red"
-        elif name in non_critical_sensors:
-            color = "green"
-        plt.scatter(x, y, color=color, label=name if name == "B" else "", s=100)
+        if name in deleted_sensors:  # Si le capteur est supprimé
+            plt.scatter(x, y, color="gray", marker="x", label="Deleted Sensor" if "Deleted Sensor" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
+        elif name == "B":  # Base
+            plt.scatter(x, y, color="black", marker="o", label="Base" if "Base" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
+        elif name in critical_sensors:  # Capteurs critiques
+            plt.scatter(x, y, color="red", marker="o", label="Critical Sensor" if "Critical Sensor" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
+        elif name in non_critical_sensors:  # Capteurs non-critiques
+            plt.scatter(x, y, color="green", marker="o", label="Non-Critical Sensor" if "Non-Critical Sensor" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
+        
+        # Ajouter les étiquettes des capteurs
         offset_x = 0.3
         plt.text(x + offset_x, y, name, fontsize=10, ha='left', va='center')
 
     if real_visited_sensors:
-        x_coords_real = []
-        y_coords_real = []
-        # Ajouter les capteurs visités dans l'ordre
-        for sensor in real_visited_sensors:
-            x_coords_real.append(points[sensor]["x"])
-            y_coords_real.append(points[sensor]["y"])
-        
-   
-        plt.plot(x_coords_real, y_coords_real, color="orange", linestyle="--", marker="o", label="Trajet du drone")
+        label_hi_mode_shown = False
+        label_lo_mode_shown = False 
+        for i in range(len(real_visited_sensors) - 1):  # Parcourt les segments
+            sensor_start = real_visited_sensors[i]
+            sensor_end = real_visited_sensors[i + 1]
+            color = "orange" if is_HI_Mode_list[i] else "gray"
+            if is_HI_Mode_list[i] and not label_hi_mode_shown:
+                label = "Drone Motion in HI Mode"
+                label_hi_mode_shown = True
+            elif not is_HI_Mode_list[i] and not label_lo_mode_shown:
+                label = "Drone Motion in LO Mode"
+                label_lo_mode_shown = True
+            else:
+                label = None 
+            # Récupérer les coordonnées de départ et d'arrivée pour le segment
+            x_coords_segment = [points[sensor_start]["x"], points[sensor_end]["x"]]
+            y_coords_segment = [points[sensor_start]["y"], points[sensor_end]["y"]]
+
+            # Tracer le segment avec la couleur appropriée
+            plt.plot(x_coords_segment, y_coords_segment, color=color, linestyle="--", marker="o", label=label if label else "")
 
 
     plt.title("Position des capteurs et de la base")
@@ -223,8 +246,8 @@ class DroneController:
         self.monitor = DroneMonitor(self.simulation, self.energy_window)
         self.monitor.start()
         
-    def plot_in_main_thread(self, points_data, visited_sensors, is_HI_Mode):
-        plot_capteurs_points(points_data, visited_sensors, is_HI_Mode)
+    def plot_in_main_thread(self, points_data, visited_sensors, deleted_sensors, is_HI_Mode_list):
+        plot_capteurs_points(points_data, visited_sensors, deleted_sensors, is_HI_Mode_list)
         
     def run_algorithm(self, algorithm_function):
         self.algorithm_thread = threading.Thread(
@@ -252,6 +275,7 @@ def do_drone_navigation(simulation, plot_signals):
     deleted_sensors = []
     visited_sensors.append(node.sensor)
     real_visited_sensors.append(node.sensor)
+    is_HI_Mode_list = []
     
     while True:
         if node.terminal:
@@ -279,12 +303,23 @@ def do_drone_navigation(simulation, plot_signals):
         """
 
         #Déplacement ou delete en fonction du mode du current node
+        
         if (is_HI_Mode):
             if(points[node.sensor]["c"] == True):
-                simulation.move_drone_to_sensor(node.sensor, is_HI_Mode)
+                simulation.move_drone_to_sensor(node.sensor, is_HI_Mode, node.accumulated_cost_mode_HI, node.accumulated_cost_mode_LO)
                 real_visited_sensors.append(node.sensor)
+                is_HI_Mode_list.append(is_HI_Mode)
                 #Mise à jour accumulated cost (cause deleted node) !! FAUX ???????????
                 #node.compute_accumulated_cost() 
+
+                #Mise à jour du mode
+                real_energy_consumed = simulation.get_consumed_energy()
+                if (real_energy_consumed > node.accumulated_cost_mode_LO):
+                    is_HI_Mode = True
+                else : 
+                    is_HI_Mode = False
+
+
             else :
                 deleted_sensors.append(node.sensor)
                 #Modif online dans le cas node deleted ????
@@ -294,39 +329,37 @@ def do_drone_navigation(simulation, plot_signals):
                 """
 
         else:
-            simulation.move_drone_to_sensor(node.sensor, is_HI_Mode)
+            simulation.move_drone_to_sensor(node.sensor, is_HI_Mode, node.accumulated_cost_mode_HI, node.accumulated_cost_mode_LO)
             real_visited_sensors.append(node.sensor)
+            is_HI_Mode_list.append(is_HI_Mode)
             #Mise à jour accumulated cost (cause deleted node) !! FAUX ???????????
             #node.compute_accumulated_cost() 
+            
+            #Mise à jour du mode
+            real_energy_consumed = simulation.get_consumed_energy()
+            if (real_energy_consumed > node.accumulated_cost_mode_LO):
+                is_HI_Mode = True
+            else : 
+                is_HI_Mode = False
 
-
-
-
-        #Mise à jour du mode
-        real_energy_consumed = simulation.get_consumed_energy()
-        if (real_energy_consumed > node.accumulated_cost_mode_LO):
-            is_HI_Mode = True
-        else : 
-            is_HI_Mode = False
-        
-
-        #PRINT
-        dist_to_go = calculate_distance(points[node.parent.sensor], points[node.sensor])
-        print("dist_from_parent_to_current",dist_to_go)
-        #dist = calculate_accumulated_distance_drone(node)
-        print(f"Capteurs visités : {visited_sensors}")
-        print(f"Capteurs visités (réel): {real_visited_sensors}")
-        print(f"Deleted sensor :  {deleted_sensors}")
-        print("energy_consumed_LO", node.accumulated_cost_mode_LO, node.sensor)
-        print("energy_consumed_HI", node.accumulated_cost_mode_HI, node.sensor)
-        #print("accumulated_dist", dist)
-        print("real_energy_consumed", real_energy_consumed)
-        print("is_HI_Mode", is_HI_Mode)
-       
-
-        
         
         time.sleep(0.1)
+
+    #PRINT
+    dist_to_go = calculate_distance(points[node.parent.sensor], points[node.sensor])
+    print("dist_from_parent_to_current",dist_to_go)
+    #dist = calculate_accumulated_distance_drone(node)
+    print(f"Capteurs visités : {visited_sensors}")
+    print(f"Capteurs visités (réel): {real_visited_sensors}")
+    print(f"Deleted sensor :  {deleted_sensors}")
+    print("energy_consumed_LO", node.accumulated_cost_mode_LO, node.sensor)
+    print("energy_consumed_HI", node.accumulated_cost_mode_HI, node.sensor)
+    #print("accumulated_dist", dist)
+    print("real_energy_consumed", real_energy_consumed)
+    print("is_HI_Mode", is_HI_Mode)
+
+
+    
 
     print(f"Nombre de capteurs visités : {len(visited_sensors)}")
     opti_total_dist = calculate_accumulated_distance_drone(node)
@@ -334,7 +367,7 @@ def do_drone_navigation(simulation, plot_signals):
     energy_remaining = init_energy - real_energy_consumed
     print(f"Energy restante drône : {energy_remaining}")
     print(f"Final Reward : ", node.reward())
-    plot_signals.plot_signal.emit(points, real_visited_sensors, is_HI_Mode)
+    plot_signals.plot_signal.emit(points, real_visited_sensors, deleted_sensors, is_HI_Mode_list)
 
 if __name__ == "__main__":
     controller = DroneController()
