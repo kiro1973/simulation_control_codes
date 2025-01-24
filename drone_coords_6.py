@@ -108,7 +108,7 @@ class DroneSimulation(QThread):
         self.wind_icon_path = os.path.abspath('wind_icon_2.png')
         self.wind_moves = wind_moves
         self.energy = 100
-        self.previous_energy = 100
+        #self.previous_energy = 100
         self.move_count = 0
         self.quadcopter_handle = None
         self.sensors = {}
@@ -285,12 +285,13 @@ class DroneSimulation(QThread):
                 0
             )
 
-    def move_drone_to_sensor(self, sensor_name):
+    def move_drone_to_sensor(self, sensor_name, is_HI_Mode):
+        print("is_HI_Mode_simu", is_HI_Mode)
         time.sleep(0.5)
         self.move_count += 1
         base_energy = 1
         # wind_factor = 2 if self.move_count in self.wind_moves else 0
-        print ("wind_moves: " , self.wind_moves)
+        #print ("wind_moves: " , self.wind_moves)
         print("self.move_count: ",self.move_count)
         wind_factor = coef_energy_wind if self.move_count in self.wind_moves else coef_energy_no_wind
 
@@ -298,7 +299,7 @@ class DroneSimulation(QThread):
             raise ValueError("Drone not found in the scene.")
 
         sensor_handle = self.sensors.get(sensor_name)['sensor']
-        print ("sensor handle",sensor_handle)
+        #print ("sensor handle",sensor_handle)
         if sensor_handle is None:
             raise ValueError(f"Sensor '{sensor_name}' not found.")
 
@@ -312,11 +313,13 @@ class DroneSimulation(QThread):
             (current_point["x"] - prev_point["x"])**2 +
             (current_point["y"] - prev_point["y"])**2
         )
-        self.previous_energy = self.energy
+        #self.previous_energy = self.energy
         #energy_consumed = self.calculate_energy_consumption(base_energy, wind_factor)
+        current_consumption = wind_factor * distance
+        self.consumed_energy += current_consumption
         
-        self.consumed_energy += wind_factor * distance
-        self.energy -= self.consumed_energy
+        #Affichage energy restante sur widget (en %)
+        self.energy -= current_consumption/init_energy * 100
         self.energy_updated.emit(self.energy)
 
         if wind_factor > 2:
