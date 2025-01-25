@@ -3,7 +3,7 @@ from my_MCTS import MCTS, Node
 import math
 import matplotlib.pyplot as plt
 from config import *
-from drone_coords_6 import DroneSimulation, EnergyWindow, DroneMonitor
+from drone_coords_7 import DroneSimulation, EnergyWindow, DroneMonitor
 import sys
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QObject, pyqtSignal
