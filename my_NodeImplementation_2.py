@@ -138,8 +138,11 @@ class Node(Node):
     
     def choose_next_sensor(self, sensor):
         #print(is_HI_Mode)
-        dist_next_to_base = calculate_distance(points[sensor], points["B"])
-        dist_to_next = calculate_distance(points[self.sensor], points[sensor])
+        #dist_next_to_base = calculate_distance(points[sensor], points["B"])
+        #dist_to_next = calculate_distance(points[self.sensor], points[sensor])
+
+        temp_node = Node(sensor = sensor, parent = self, terminal = False)
+        temp_child = Node(sensor="B", parent=temp_node, terminal = True)
 
         #Gestion du cas où on a visité tous les capteurs 
         if (sensor == "B"): 
@@ -149,11 +152,18 @@ class Node(Node):
         #Dans le cas où il n'y a jamais de vent on parcourt la sequence entière ! 
         #Si on met la condition d'arrêt de la sequence avec HI, on optimise pas du tt l'énergy du drone... (il reste plein d'énergy à la fin...)
         #elif (self.accumulated_cost_mode_LO + coef_energy_no_wind*(dist_to_next+dist_next_to_base) >= init_energy ):  
-        elif (self.accumulated_cost_mode_HI + coef_energy_wind_max*(dist_to_next+dist_next_to_base) >= init_energy): 
+        
+        elif temp_child.accumulated_cost_mode_HI <= init_energy : 
+            return temp_node
+        else : 
+            return Node(sensor = "B", parent = self, terminal = True)
+        
+        """elif (self.accumulated_cost_mode_HI + coef_energy_wind_max*(dist_to_next+dist_next_to_base) >= init_energy): 
         #elif (self.accumulated_cost_mode_HI + coef_energy_wind*(dist_to_next+dist_next_to_base) >= init_energy ): 
             return Node(sensor="B", parent=self, terminal=True)
         else:
             return Node(sensor=sensor, parent=self, terminal=False)
+        """
 
 def calculate_distance(capteur1, capteur2):
     x1, y1 = capteur1['x'], capteur1['y']
