@@ -4,7 +4,7 @@ import threading
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import os
 import time
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget,QHBoxLayout
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap
 import sys
@@ -14,26 +14,47 @@ class EnergyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Drone Energy Monitor")
-        self.setFixedSize(250, 350)
+        self.setFixedSize(350, 350)  # Increased width to accommodate new elements
         
         screen = QApplication.primaryScreen().geometry()
-        self.move(screen.width()-280, 110)
+        self.move(screen.width()-380, 110)  # Adjust position for new width
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
         
-        battery_label = QLabel()
-        battery_pixmap = QPixmap("battery.png")
-        battery_pixmap = battery_pixmap.scaled(50, 50, Qt.KeepAspectRatio)
-        battery_label.setPixmap(battery_pixmap)
-        battery_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        layout.addWidget(battery_label)
+        # Create horizontal layout for icon and energy info
+        energy_header = QWidget()
+        energy_layout = QHBoxLayout(energy_header)
         
-        self.energy_label = QLabel("Energy: 100%")
-        self.energy_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.energy_label.setStyleSheet("font-size: 16px; font-weight: bold;")
-        layout.addWidget(self.energy_label)
+        # Battery icon
+        battery_label = QLabel()
+        battery_pixmap = QPixmap("battery.png").scaled(40, 40, Qt.KeepAspectRatio)
+        battery_label.setPixmap(battery_pixmap)
+        energy_layout.addWidget(battery_label)
+        
+        # Energy labels
+        energy_labels = QWidget()
+        energy_text_layout = QVBoxLayout(energy_labels)
+        
+        self.energy_label = QLabel(f"Remaining: 100%")
+        self.initial_energy_label = QLabel(f"Initial: {init_energy} W")
+        
+        # Style remaining energy label
+        self.energy_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self.initial_energy_label.setStyleSheet("font-size: 12px; color: #666;")
+        
+        energy_text_layout.addWidget(self.energy_label)
+        energy_text_layout.addWidget(self.initial_energy_label)
+        energy_layout.addWidget(energy_labels)
+        
+        layout.addWidget(energy_header)
+        
+        # # Rest of the UI elements remain the same...
+        # self.mode_label = QLabel("Mode: LO")
+        # self.mode_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        # self.mode_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        # layout.addWidget(self.mode_label)
         
         self.mode_label = QLabel("Mode: LO")
         self.mode_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -65,11 +86,11 @@ class EnergyWindow(QMainWindow):
         self.show()
     
     def update_energy(self, energy):
-        self.energy_label.setText(f"Energy: {int(energy)}%")
+        self.energy_label.setText(f"Remaining: {int(energy)}%")
         if energy < 20:
-            self.energy_label.setStyleSheet("font-size: 16px; font-weight: bold; color: red;")
+            self.energy_label.setStyleSheet("font-size: 14px; font-weight: bold; color: red;")
         else:
-            self.energy_label.setStyleSheet("font-size: 16px; font-weight: bold; color: black;")
+            self.energy_label.setStyleSheet("font-size: 14px; font-weight: bold; color: black;")
     
     def update_mode_and_costs(self, is_hi_mode, accumulated_cost_lo, accumulated_cost_hi, consumed_energy):
         mode_text = "HI" if is_hi_mode else "LO"
@@ -353,7 +374,9 @@ class DroneSimulation(QThread):
         self.consumed_energy += current_consumption
         
         #Affichage energy restante sur widget (en %)
-        self.energy -= current_consumption/init_energy * 100
+        self.energy -= (current_consumption/init_energy * 100)
+        # energy_to_show=self.energy/init_energy * 100
+        # print("energy to show ",energy_to_show)
         self.energy_updated.emit(self.energy)
 
         if wind_factor > 2:
@@ -382,6 +405,7 @@ class DroneSimulation(QThread):
         print("accumulated_cost_mode_LO", accumulated_cost_mode_LO)
         print("accumulated_cost_mode_HI", accumulated_cost_mode_HI)
         print("real_consumed_energy",self.consumed_energy)
+        print("real_remaining_energy",self.energy)
 
     def run(self):
         sensors_to_visit = ['C1', 'C2', 'C3', 'C4', 'C1', 'C2', 'B']  # Added 'B' to the path
