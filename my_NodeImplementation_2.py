@@ -49,19 +49,20 @@ class Node(Node):
             
             if (points[self.sensor]["c"] == True):
                 node = self.parent
+                worst_previous_node = self.parent
                 worst_accumulated_cost = node.accumulated_cost_mode_HI
-                longest_dist_from_previous_to_curent_node = dist_from_parent_to_current_node
                 while (node.parent != None and points[node.sensor]["c"]==False):
                     node = node.parent
                     if (node.accumulated_cost_mode_HI > worst_accumulated_cost):
                         worst_accumulated_cost = node.accumulated_cost_mode_HI
+                        worst_previous_node = node
 
                     """dist_to_compare = calculate_distance(points[node.sensor], points[self.sensor])
                     if (dist_to_compare > longest_dist_from_previous_to_curent_node):
                         longest_dist_from_previous_to_curent_node = dist_to_compare 
                     """                  
-
-                self.accumulated_cost_mode_HI = worst_accumulated_cost + coef_energy_wind_max*longest_dist_from_previous_to_curent_node
+                dist_from_previous_node_with_worst_accumulated_cost = calculate_distance(points[worst_previous_node.sensor], points[self.sensor])
+                self.accumulated_cost_mode_HI = worst_accumulated_cost + coef_energy_wind_max*dist_from_previous_node_with_worst_accumulated_cost
             else:
                 self.accumulated_cost_mode_HI = self.parent.accumulated_cost_mode_LO + coef_energy_wind_max*dist_from_parent_to_current_node
 
@@ -195,7 +196,7 @@ def plot_capteurs_points(points, real_visited_sensors, deleted_sensors, is_HI_Mo
     for name, coord in points.items():
         x, y = coord["x"], coord["y"]
         if name in deleted_sensors:  # Si le capteur est supprimé
-            plt.scatter(x, y, color="gray", marker="x", label="Deleted Sensor" if "Deleted Sensor" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
+            plt.scatter(x, y, color="gray", marker="x", label="Ignored Sensor" if "Ignored Sensor" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
         elif name == "B":  # Base
             plt.scatter(x, y, color="black", marker="o", label="Base" if "Base" not in plt.gca().get_legend_handles_labels()[1] else "", s=100)
         elif name in critical_sensors:  # Capteurs critiques
