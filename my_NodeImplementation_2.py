@@ -229,7 +229,17 @@ def plot_capteurs_points(points, real_visited_sensors, deleted_sensors, is_HI_Mo
 
             # Tracer le segment avec la couleur appropriée
             plt.plot(x_coords_segment, y_coords_segment, color=color, linestyle="--", marker="o", label=label if label else "")
-
+            
+            # Ajouter une flèche sur le premier segment
+            if i == 0:
+                x_arrow = x_coords_segment[0] + (x_coords_segment[1] - x_coords_segment[0]) * 0.75
+                y_arrow = y_coords_segment[0] + (y_coords_segment[1] - y_coords_segment[0]) * 0.75
+                plt.annotate(
+                    "", 
+                    xy=(x_arrow, y_arrow), 
+                    xytext=(x_arrow - (x_coords_segment[1] - x_coords_segment[0]) * 0.05, y_arrow - (y_coords_segment[1] - y_coords_segment[0]) * 0.05), 
+                    arrowprops=dict(arrowstyle="->", color=color, lw=2, mutation_scale=20)
+                )
 
     plt.title("Position des capteurs et de la base")
     plt.xlabel("X")
