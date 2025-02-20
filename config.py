@@ -56,6 +56,23 @@ simulation_depth = 4 #Profondeur de simulation : on simule les 4 prochains capte
 
 # Moves where wind is present
 wind_moves = [3,4,5,6,7,8]  # The 4th and 5th moves will have wind
+wind_regions = [
+    {'center': (2, 3), 'radius': 1.5, 'moves': [2, 3, 4]},
+    {'center': (5, 5), 'radius': 2.0, 'moves': [5, 6]}
+]
+
+# wind_regions = [
+#     (2.5, 3.0, 1.0, [3, 4, 5]),  # Center (x,y), radius, active moves
+#     (4.0, 1.5, 0.8, [2, 3])       # Another wind region
+# ]
+# wind_regions = [
+#     {
+#         'center': (2.5, 3.0),  # X,Y coordinates
+#         'radius': 1.5,         # Meters
+#         'moves': [3,4,5]       # Active during these moves
+#     }
+# ]
+
 #wind_moves = []
 
 
