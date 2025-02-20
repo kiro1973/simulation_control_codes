@@ -252,7 +252,7 @@ class DroneController:
         self.plot_signals.plot_signal.connect(self.plot_in_main_thread)
         
     def initialize(self):
-        self.simulation = DroneSimulation(points, wind_moves)
+        self.simulation = DroneSimulation(points, wind_regions)
         self.simulation.energy_updated.connect(self.energy_window.update_energy)
         self.monitor = DroneMonitor(self.simulation, self.energy_window)
         self.monitor.start()
