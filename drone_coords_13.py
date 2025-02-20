@@ -545,9 +545,9 @@ class DroneSimulation(QThread):
             text_shape = self.sim.getObject(f"/{sensor_name}[1]/text")
            
             # Soft light red for critical sensors
-            soft_red = [0.8, 0.0, 0.0]  
+            soft_red = [0.45, 0.1, 0.1]  
             # Soft gray for non-critical sensors
-            soft_gray = [0.3, 0.3, 0.3]
+            soft_gray = [0.7, 0.7, 0.7]
             
             color = soft_red if is_critical else soft_gray
             
@@ -563,6 +563,55 @@ class DroneSimulation(QThread):
             #self.sim.setShapeColor(text_shape, None, 0, color)
         except Exception as e:
             print(f"Error marking label visited: {e}")
+    def mark_label_visited(self, sensor_name, is_critical): ##COLORING
+        try:
+            print(f"/{sensor_name}[1]/text")
+            text_shape = self.sim.getObject(f"/{sensor_name}[1]/text")
+           
+            # Soft light red for critical sensors
+            soft_red = [0.45, 0.1, 0.1]  
+            # Soft gray for non-critical sensors
+            soft_gray = [0.7, 0.7, 0.7]
+            
+            color = soft_red if is_critical else soft_gray
+            
+            # Update text color
+            # self.sim.generateTextShape(
+            #     self.sim.getObjectName(text_shape), 
+            #     color, 
+            #     0.15, 
+            #     True, 
+            #     text_shape  # Reuse existing text shape
+            # )
+            self.sim.setObjectColor(text_shape, 0, self.sim.colorcomponent_ambient_diffuse, color)
+            #self.sim.setShapeColor(text_shape, None, 0, color)
+        except Exception as e:
+            print(f"Error marking label visited: {e}")
+    def mark_label_visited_text(self, sensor_name, is_critical): ##COLORING
+        try:
+            print(f"/{sensor_name}[1]/")
+            text_shape = self.sim.getObject(f"/{sensor_name}[1]")
+            text_shape_inner_text = self.sim.getObject(f"/{sensor_name}[1]/text")
+            print ("the object i got: ",text_shape )
+            object_position = self.sim.getObjectPosition(text_shape, -1)
+            self.sim.removeObject(text_shape)
+            self.sim.removeObject(text_shape_inner_text)
+            visited_string=sensor_name+ " v"
+            # Soft light red for critical sensors
+            
+            color = [1, 0, 0] if is_critical else [0, 0, 0]
+            
+            text_shape = self.sim.generateTextShape(
+                visited_string, color, 0.17, True
+            )
+            label_position = [
+                object_position[0] + 0.0,
+                object_position[1] + 0.0,
+                object_position[2] + 0.0
+            ]
+            self.sim.setObjectPosition(text_shape, -1, label_position)
+        except Exception as e:
+            print(f"Error marking label visited_2: {e}")
     def color_drone_mode_if_HI(self,isHi):
         drone_circle_shape = self.sim.getObject("/Quadcopter/base/target")
         soft_red = [0.8, 0.0, 0.0]  
