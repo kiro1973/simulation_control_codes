@@ -4,43 +4,68 @@ import threading
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import os
 import time
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget,QHBoxLayout
+from PyQt5.QtWidgets import (
+    QApplication, 
+    QMainWindow, 
+    QLabel, 
+    QVBoxLayout, 
+    QWidget,
+    QHBoxLayout,
+    QFrame
+)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen
 import sys
 from config import *
+
+class CircleWidget(QWidget):
+    def __init__(self, color, size=15, parent=None):
+        super().__init__(parent)
+        self.color = color
+        self.size = size
+        self.setFixedSize(size, size)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Draw border (black circle)
+        pen = QPen(QColor('black'), 2)
+        painter.setPen(pen)
+        brush = QBrush(QColor(self.color))
+        painter.setBrush(brush)
+        
+        # Draw circle
+        painter.drawEllipse(1, 1, self.size-2, self.size-2)
 
 class EnergyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Drone Energy Monitor")
-        self.setFixedSize(350, 350)  # Increased width to accommodate new elements
+        self.setFixedSize(350, 500)
         
         screen = QApplication.primaryScreen().geometry()
-        self.move(screen.width()-380, 110)  # Adjust position for new width
+        self.move(screen.width()-380, 110)
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
         
-        # Create horizontal layout for icon and energy info
+        # Energy header section (battery icon and labels)
         energy_header = QWidget()
         energy_layout = QHBoxLayout(energy_header)
         
-        # Battery icon
         battery_label = QLabel()
         battery_pixmap = QPixmap("battery.png").scaled(40, 40, Qt.KeepAspectRatio)
         battery_label.setPixmap(battery_pixmap)
         energy_layout.addWidget(battery_label)
         
-        # Energy labels
         energy_labels = QWidget()
         energy_text_layout = QVBoxLayout(energy_labels)
         
         self.energy_label = QLabel(f"Remaining: 100%")
         self.initial_energy_label = QLabel(f"Initial: {init_energy} W")
         
-        # Style remaining energy label
         self.energy_label.setStyleSheet("font-size: 14px; font-weight: bold;")
         self.initial_energy_label.setStyleSheet("font-size: 12px; color: #666;")
         
@@ -50,15 +75,10 @@ class EnergyWindow(QMainWindow):
         
         layout.addWidget(energy_header)
         
-        # # Rest of the UI elements remain the same...
-        # self.mode_label = QLabel("Mode: LO")
-        # self.mode_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        # self.mode_label.setStyleSheet("font-size: 14px; font-weight: bold;")
-        # layout.addWidget(self.mode_label)
-        
+        # Mode and cost section
         self.mode_label = QLabel("Mode: LO")
         self.mode_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.mode_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self.mode_label.setStyleSheet("font-size: 14px; font-weight: bold; color: blue;")
         layout.addWidget(self.mode_label)
         
         self.cost_lo_label = QLabel("Acc. Cost (LO): 0.00 W")
@@ -70,6 +90,13 @@ class EnergyWindow(QMainWindow):
             label.setStyleSheet("font-size: 12px;")
             layout.addWidget(label)
         
+        # Add first separator line
+        first_separator = QFrame()
+        first_separator.setFrameShape(QFrame.HLine)
+        first_separator.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(first_separator)
+        
+        # Position section
         self.position_label = QLabel("Position:")
         self.position_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.position_label.setStyleSheet("font-size: 14px; font-weight: bold;")
@@ -82,9 +109,118 @@ class EnergyWindow(QMainWindow):
             label.setStyleSheet("font-size: 12px;")
             layout.addWidget(label)
         
+        # Add second separator line
+        second_separator = QFrame()
+        second_separator.setFrameShape(QFrame.HLine)
+        second_separator.setFrameShadow(QFrame.Sunken)
+        second_separator.setLineWidth(2)
+        layout.addWidget(second_separator)
+        
+        # Legend section with side-by-side layout
+        legend_label = QLabel("Legend:")
+        legend_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        layout.addWidget(legend_label)
+        
+        # Create a widget to hold both legends side by side
+        legends_container = QWidget()
+        legends_layout = QHBoxLayout(legends_container)
+        legends_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # === SENSORS LEGEND (LEFT SIDE) ===
+        sensors_widget = QWidget()
+        sensors_layout = QVBoxLayout(sensors_widget)
+        sensors_layout.setContentsMargins(5, 5, 5, 5)
+        
+        sensors_title = QLabel("Sensors:")
+        sensors_title.setStyleSheet("font-weight: bold;")
+        sensors_layout.addWidget(sensors_title)
+        
+        # Critical sensor indicator
+        critical_sensor = QWidget()
+        critical_layout = QHBoxLayout(critical_sensor)
+        critical_layout.setContentsMargins(0, 0, 0, 0)
+        critical_circle = CircleWidget('red')
+        critical_layout.addWidget(critical_circle)
+        critical_text = QLabel("Critical sensor")
+        critical_layout.addWidget(critical_text)
+        critical_layout.addStretch()
+        sensors_layout.addWidget(critical_sensor)
+        
+        # Normal sensor indicator
+        normal_sensor = QWidget()
+        normal_layout = QHBoxLayout(normal_sensor)
+        normal_layout.setContentsMargins(0, 0, 0, 0)
+        normal_circle = CircleWidget('black')
+        normal_layout.addWidget(normal_circle)
+        normal_text = QLabel("Normal sensor")
+        normal_layout.addWidget(normal_text)
+        normal_layout.addStretch()
+        sensors_layout.addWidget(normal_sensor)
+        
+        # Visited sensor indicator
+        visited_sensor = QWidget()
+        visited_layout = QHBoxLayout(visited_sensor)
+        visited_layout.setContentsMargins(0, 0, 0, 0)
+        visited_circle = CircleWidget('white')
+        visited_layout.addWidget(visited_circle)
+        visited_text = QLabel("Visited sensor")
+        visited_layout.addWidget(visited_text)
+        visited_layout.addStretch()
+        sensors_layout.addWidget(visited_sensor)
+        
+        legends_layout.addWidget(sensors_widget)
+        
+        # === DRONE MODE LEGEND (RIGHT SIDE) ===
+        drone_mode_widget = QWidget()
+        drone_mode_layout = QVBoxLayout(drone_mode_widget)
+        drone_mode_layout.setContentsMargins(5, 5, 5, 5)
+        
+        drone_mode_title = QLabel("Drone Mode:")
+        drone_mode_title.setStyleSheet("font-weight: bold;")
+        drone_mode_layout.addWidget(drone_mode_title)
+        
+        # HI Mode indicator
+        hi_mode = QWidget()
+        hi_layout = QHBoxLayout(hi_mode)
+        hi_layout.setContentsMargins(0, 0, 0, 0)
+        hi_drone = QLabel()
+        hi_drone_pixmap = QPixmap("drone.png").scaled(20, 20, Qt.KeepAspectRatio)
+        hi_drone.setPixmap(hi_drone_pixmap)
+        hi_drone.setStyleSheet("background-color: red; padding: 2px; border: 1px solid black;")
+        hi_layout.addWidget(hi_drone)
+        hi_text = QLabel("HI Mode")
+        hi_layout.addWidget(hi_text)
+        hi_layout.addStretch()
+        drone_mode_layout.addWidget(hi_mode)
+        
+        # LO Mode indicator
+        lo_mode = QWidget()
+        lo_layout = QHBoxLayout(lo_mode)
+        lo_layout.setContentsMargins(0, 0, 0, 0)
+        lo_drone = QLabel()
+        lo_drone_pixmap = QPixmap("drone.png").scaled(20, 20, Qt.KeepAspectRatio)
+        lo_drone.setPixmap(lo_drone_pixmap)
+        lo_drone.setStyleSheet("background-color: blue; padding: 2px; border: 1px solid black;")
+        lo_layout.addWidget(lo_drone)
+        lo_text = QLabel("LO Mode")
+        lo_layout.addWidget(lo_text)
+        lo_layout.addStretch()
+        drone_mode_layout.addWidget(lo_mode)
+        
+        # Add an empty spacer widget to take up vertical space
+        drone_mode_layout.addStretch()
+        
+        legends_layout.addWidget(drone_mode_widget)
+        
+        # Add the side-by-side legends container to the main layout
+        layout.addWidget(legends_container)
+        
+        # Add a spacer at the bottom to push everything up
+        layout.addStretch()
+        
         layout.setSpacing(10)
         self.show()
-    
+        
     def update_energy(self, energy):
         self.energy_label.setText(f"Remaining: {int(energy)}%")
         if energy < 20:
@@ -545,33 +681,9 @@ class DroneSimulation(QThread):
             text_shape = self.sim.getObject(f"/{sensor_name}[1]/text")
            
             # Soft light red for critical sensors
-            soft_red = [0.45, 0.1, 0.1]  
+            soft_red = [1, 1, 1]  
             # Soft gray for non-critical sensors
-            soft_gray = [0.7, 0.7, 0.7]
-            
-            color = soft_red if is_critical else soft_gray
-            
-            # Update text color
-            # self.sim.generateTextShape(
-            #     self.sim.getObjectName(text_shape), 
-            #     color, 
-            #     0.15, 
-            #     True, 
-            #     text_shape  # Reuse existing text shape
-            # )
-            self.sim.setObjectColor(text_shape, 0, self.sim.colorcomponent_ambient_diffuse, color)
-            #self.sim.setShapeColor(text_shape, None, 0, color)
-        except Exception as e:
-            print(f"Error marking label visited: {e}")
-    def mark_label_visited(self, sensor_name, is_critical): ##COLORING
-        try:
-            print(f"/{sensor_name}[1]/text")
-            text_shape = self.sim.getObject(f"/{sensor_name}[1]/text")
-           
-            # Soft light red for critical sensors
-            soft_red = [0.45, 0.1, 0.1]  
-            # Soft gray for non-critical sensors
-            soft_gray = [0.7, 0.7, 0.7]
+            soft_gray = [1, 1, 1]
             
             color = soft_red if is_critical else soft_gray
             
